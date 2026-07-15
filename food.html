@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>توزیع غذای خوابگاه</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap');
+        
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #f3f4f6; user-select: none; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .nav-btn { transition: all 0.2s; border-bottom: 3px solid transparent; color: #64748b; }
+        .nav-btn.active { border-bottom-color: #2563eb; color: #1d4ed8; font-weight: bold; background: #eff6ff; }
+
+        .corridor-tab { transition: all 0.2s; border: 1px solid #e5e7eb; color: #4b5563; }
+        .corridor-tab.active { background-color: #2563eb; color: white; border-color: #2563eb; }
+
+        .student-box { transition: all 0.2s ease; border: 1px solid #f3f4f6; }
+        .status-absent { background-color: #ffffff; }
+        .status-delivered { background-color: #f0fdf4; border-color: #86efac; }
+        .status-proxy { background-color: #fffbeb; border-color: #fde047; }
+        
+        .status-delivered .student-name, .status-proxy .student-name { text-decoration: line-through; color: #9ca3af; }
+
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(2px); }
+
+        .chip { display: inline-flex; align-items: center; padding: 4px 10px; background-color: #e0f2fe; color: #0369a1; border-radius: 16px; font-size: 13px; font-weight: bold; margin: 4px; border: 1px solid #bae6fd; animation: popIn 0.2s; }
+        .chip button { margin-right: 6px; color: #0284c7; font-size: 14px; }
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        #suggestions-box::-webkit-scrollbar, .report-content::-webkit-scrollbar { width: 6px; }
+        #suggestions-box::-webkit-scrollbar-thumb, .report-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="pb-24">
+
+    <!-- هدر برنامه -->
+    <header class="bg-white shadow-sm sticky top-0 z-30">
+        <div class="max-w-md mx-auto">
+            <div class="p-4 flex justify-between items-center border-b">
+                <h1 class="font-bold text-blue-700 text-lg"><i class="fas fa-utensils ml-2"></i>خوابگاه‌من</h1>
+                <span id="header-date" class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded"></span>
+            </div>
+            <div class="flex text-sm">
+                <button onclick="switchTab('distribute')" id="nav-distribute" class="nav-btn active flex-1 py-3 flex flex-col items-center gap-1">
+                    <i class="fas fa-clipboard-list text-lg"></i> <span>توزیع غذا</span>
+                </button>
+                <button onclick="switchTab('database')" id="nav-database" class="nav-btn flex-1 py-3 flex flex-col items-center gap-1">
+                    <i class="fas fa-door-open text-lg"></i> <span>اتاق‌ها</span>
+                </button>
+                <button onclick="switchTab('history')" id="nav-history" class="nav-btn flex-1 py-3 flex flex-col items-center gap-1">
+                    <i class="fas fa-history text-lg"></i> <span>بایگانی</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto p-4">
+        
+        <!-- ================= تب ۱: توزیع غذا ================= -->
+        <section id="tab-distribute" class="tab-content active">
+            
+            <div id="dist-input-section" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4">
+                <h2 class="font-bold text-gray-800 mb-3 text-sm">۱. انتخاب وعده غذایی:</h2>
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div>
+                        <input type="radio" id="meal-breakfast" name="mealType" value="صبحانه" class="peer hidden">
+                        <label for="meal-breakfast" class="flex items-center justify-center p-3 border-2 border-gray-100 rounded-xl cursor-pointer bg-gray-50 peer-checked:bg-blue-50 peer-checked:border-blue-400 peer-checked:text-blue-700 transition-all">
+                            <span class="text-sm font-bold">☕ صبحانه</span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" id="meal-lunch" name="mealType" value="ناهار" class="peer hidden" checked>
+                        <label for="meal-lunch" class="flex items-center justify-center p-3 border-2 border-gray-100 rounded-xl cursor-pointer bg-gray-50 peer-checked:bg-blue-50 peer-checked:border-blue-400 peer-checked:text-blue-700 transition-all">
+                            <span class="text-sm font-bold">🍛 ناهار</span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" id="meal-dinner" name="mealType" value="شام" class="peer hidden">
+                        <label for="meal-dinner" class="flex items-center justify-center p-3 border-2 border-gray-100 rounded-xl cursor-pointer bg-gray-50 peer-checked:bg-blue-50 peer-checked:border-blue-400 peer-checked:text-blue-700 transition-all">
+                            <span class="text-sm font-bold">🍲 شام</span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" id="meal-bonus" name="mealType" value="پک تشویقی" class="peer hidden">
+                        <label for="meal-bonus" class="flex items-center justify-center p-3 border-2 border-gray-100 rounded-xl cursor-pointer bg-gray-50 peer-checked:bg-blue-50 peer-checked:border-blue-400 peer-checked:text-blue-700 transition-all">
+                            <span class="text-sm font-bold">🎁 تشویقی</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="font-bold text-gray-800 text-sm">۲. افزودن سریع اسامی:</h2>
+                    <button onclick="pasteFromClipboard()" class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded font-bold hover:bg-blue-100 transition-colors">
+                        <i class="fas fa-paste"></i> پیست یکجای لیست
+                    </button>
+                </div>
+                
+                <div class="relative mb-3">
+                    <div class="flex gap-2">
+                        <input type="text" id="smart-input" oninput="handleSmartSearch()" onkeypress="if(event.key === 'Enter') addTypedName()" placeholder="تایپ کنید (مثلاً: علی)..." class="flex-1 border border-gray-300 rounded-lg p-3 text-sm focus:border-blue-500 outline-none bg-gray-50 focus:bg-white transition-colors">
+                        <button onclick="addTypedName()" class="bg-blue-600 text-white px-4 rounded-lg shadow font-bold text-lg active:bg-blue-700"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <div id="suggestions-box" class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl hidden max-h-48 overflow-y-auto"></div>
+                </div>
+
+                <div class="border border-dashed border-gray-300 rounded-lg p-3 min-h-[100px] bg-gray-50">
+                    <div class="text-xs text-gray-400 mb-2 font-bold flex justify-between">
+                        <span>لیست توزیع این وعده:</span>
+                        <span id="selected-count-label">۰ نفر</span>
+                    </div>
+                    <div id="selected-chips-container" class="flex flex-wrap"></div>
+                </div>
+                
+                <button onclick="startDistribution()" class="w-full mt-5 bg-gray-800 text-white py-3.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-lg active:bg-black transition-colors">
+                    <i class="fas fa-play"></i> شروع توزیع
+                </button>
+            </div>
+
+            <!-- بخش پخش در راهروها -->
+            <div id="dist-action-section" class="hidden">
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 mb-4 flex justify-between items-center">
+                    <div>
+                        <span class="block text-[10px] text-gray-500">وعده توزیع</span>
+                        <span id="active-meal-name" class="font-bold text-blue-700">ناهار</span>
+                    </div>
+                    <div class="flex gap-2 text-center">
+                        <div class="bg-green-50 px-3 py-1 rounded border border-green-200">
+                            <span class="block text-[10px] text-green-700">تحویل شده</span>
+                            <span id="stat-ok" class="font-bold text-green-700">0</span>
+                        </div>
+                        <div class="bg-red-50 px-3 py-1 rounded border border-red-200">
+                            <span class="block text-[10px] text-red-700">غایب</span>
+                            <span id="stat-nok" class="font-bold text-red-700">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex overflow-x-auto gap-2 mb-4 pb-2 scrollbar-hide" id="corridor-tabs"></div>
+                <div id="rooms-container" class="space-y-4 mb-6"></div>
+
+                <div class="flex gap-2">
+                    <button onclick="cancelDistribution()" class="bg-white border border-gray-300 text-gray-600 px-4 py-3 rounded-lg font-bold">لغو</button>
+                    <button onclick="finishDistribution()" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold shadow-lg flex items-center justify-center gap-2 active:bg-green-700 transition-colors">
+                        <i class="fas fa-file-alt"></i> صدور گزارش و پایان
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= تب ۲: دیتابیس اتاق‌ها ================= -->
+        <section id="tab-database" class="tab-content">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-gray-800">نقشه اتاق‌ها</h2>
+                    <span id="db-total-count" class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-bold">۰ نفر</span>
+                </div>
+                
+                <div class="flex gap-1 mb-4 bg-gray-100 p-1 rounded-lg">
+                    <button onclick="setDbCorridor('محمدی')" id="db-btn-محمدی" class="db-corridor-btn flex-1 py-1.5 rounded text-sm font-bold bg-white shadow-sm text-blue-600">محمدی</button>
+                    <button onclick="setDbCorridor('رز')" id="db-btn-رز" class="db-corridor-btn flex-1 py-1.5 rounded text-sm font-bold text-gray-500">رز</button>
+                    <button onclick="setDbCorridor('نیلوفر')" id="db-btn-نیلوفر" class="db-corridor-btn flex-1 py-1.5 rounded text-sm font-bold text-gray-500">نیلوفر</button>
+                    <button onclick="setDbCorridor('شقایق')" id="db-btn-شقایق" class="db-corridor-btn flex-1 py-1.5 rounded text-sm font-bold text-gray-500">شقایق</button>
+                </div>
+
+                <div id="db-grid" class="grid grid-cols-3 gap-3"></div>
+            </div>
+        </section>
+
+        <!-- ================= تب ۳: بایگانی ================= -->
+        <section id="tab-history" class="tab-content">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="font-bold text-gray-800 mb-4 border-b pb-2">تاریخچه توزیع‌ها</h2>
+                <div id="history-list" class="space-y-3"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= مودال مدیریت اتاق (در دیتابیس) ================= -->
+    <div id="room-modal" class="fixed inset-0 modal-overlay hidden z-50 flex items-center justify-center p-4 opacity-0 transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform" id="room-modal-content">
+            <div class="bg-gray-800 text-white px-4 py-3 flex justify-between items-center">
+                <h3 id="room-modal-title" class="font-bold">اتاق</h3>
+                <button onclick="closeRoomModal()" class="text-gray-300 hover:text-white text-xl px-2"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 bg-gray-50">
+                <div id="room-modal-students" class="space-y-2 max-h-60 overflow-y-auto mb-4 min-h-[60px]"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="add-student-input" placeholder="نام دانشجو..." class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-500" onkeypress="if(event.key === 'Enter') addStudent()">
+                    <button onclick="addStudent()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold shadow-md"><i class="fas fa-plus"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= مودال تعیین شخص گیرنده (Proxy) ================= -->
+    <div id="proxy-modal" class="fixed inset-0 modal-overlay hidden z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 opacity-0 transition-opacity">
+        <div class="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="proxy-modal-content">
+            <div class="bg-yellow-500 text-white px-4 py-3 flex justify-between items-center shadow-sm">
+                <h3 class="font-bold text-sm"><i class="fas fa-handshake ml-2"></i>تعیین گیرنده‌ی غذا</h3>
+                <button onclick="closeProxyModal()" class="text-yellow-100 hover:text-white text-xl px-2"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 bg-white">
+                <p id="proxy-subtitle" class="text-xs text-gray-500 mb-3 font-bold">چه کسی غذای <span id="proxy-target-name" class="text-gray-800"></span> را می‌گیرد؟</p>
+                
+                <div class="mb-4">
+                    <span class="block text-[10px] text-gray-400 mb-1">هم‌اتاقی‌ها (انتخاب سریع):</span>
+                    <div id="proxy-roommates-list" class="flex flex-wrap gap-2">
+                        <!-- دکمه هم‌اتاقی‌ها -->
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-100 pt-3">
+                    <span class="block text-[10px] text-gray-400 mb-1">یا فرد دیگری از خوابگاه:</span>
+                    <div class="flex gap-2">
+                        <input type="text" id="proxy-custom-name" placeholder="تایپ نام گیرنده..." class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-yellow-500">
+                        <button onclick="setCustomProxy()" class="bg-yellow-500 text-white px-4 py-2 rounded-lg font-bold shadow-sm">ثبت</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= مودال نمایش جامع گزارش ================= -->
+    <div id="report-modal" class="fixed inset-0 modal-overlay hidden z-50 flex items-center justify-center p-4 opacity-0 transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform scale-95 transition-transform flex flex-col max-h-[85vh]" id="report-modal-content">
+            <div class="bg-blue-600 text-white px-4 py-3 flex justify-between items-center shadow-md z-10">
+                <h3 class="font-bold"><i class="fas fa-file-alt ml-2"></i>گزارش توزیع</h3>
+                <button onclick="closeReportModal()" class="text-blue-100 hover:text-white text-xl px-2"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 bg-gray-50 overflow-y-auto report-content flex-1 text-sm text-gray-800 whitespace-pre-wrap leading-loose font-medium" id="report-modal-text"></div>
+            <div class="p-4 bg-white border-t border-gray-200">
+                <button onclick="copyModalReport()" class="w-full bg-gray-800 text-white py-3 rounded-lg font-bold shadow-md flex justify-center items-center gap-2 active:bg-black">
+                    <i class="fas fa-copy"></i> کپی کردن در گوشی
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- اسکریپت‌ها -->
+    <script>
+        const CORRIDORS = ['محمدی', 'رز', 'نیلوفر', 'شقایق'];
+        const ROOM_COUNT = 11;
+        
+        let db = []; 
+        let history = []; 
+        let selectedForToday = []; 
+        
+        let currentDist = {}; 
+        let distStats = { total: 0, deliveredNormal: 0, deliveredProxy: 0, remaining: 0 };
+        let currentMeal = '';
+        
+        let activeDbCorridor = 'محمدی';
+        let activeDbRoom = 1;
+
+        // متغیر proxyTarget (اگر index برابر -1 باشد یعنی کل اتاق)
+        let proxyTarget = { corridor: '', room: '', index: -1, name: '' };
+
+        window.onload = () => {
+            document.getElementById('header-date').innerText = new Date().toLocaleDateString('fa-IR');
+            loadData();
+            renderDbGrid();
+            
+            document.addEventListener('click', (e) => {
+                if(e.target.id !== 'smart-input') document.getElementById('suggestions-box').classList.add('hidden');
+            });
+        };
+
+        function loadData() {
+            try {
+                const savedDb = localStorage.getItem('dormDb_v7');
+                if (savedDb) db = JSON.parse(savedDb);
+                const savedHistory = localStorage.getItem('dormHistory_v7');
+                if (savedHistory) history = JSON.parse(savedHistory);
+            } catch (e) { db = []; history = []; }
+        }
+        function saveDb() { localStorage.setItem('dormDb_v7', JSON.stringify(db)); }
+        function saveHistory() { localStorage.setItem('dormHistory_v7', JSON.stringify(history)); }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            document.getElementById(`nav-${tabId}`).classList.add('active');
+            
+            if (tabId === 'history') renderHistory();
+            if (tabId === 'database') renderDbGrid();
+        }
+
+        // ================= بخش ورودی هوشمند =================
+        function handleSmartSearch() {
+            const input = document.getElementById('smart-input').value.trim();
+            const suggBox = document.getElementById('suggestions-box');
+            
+            if (input.length < 1) { suggBox.classList.add('hidden'); return; }
+
+            const searchStr = input.replace(/\s+/g, '');
+            const matches = db.filter(s => s.name.replace(/\s+/g, '').includes(searchStr) && !selectedForToday.includes(s.name));
+
+            if (matches.length > 0) {
+                suggBox.innerHTML = matches.map(m => `
+                    <div onclick="addSelectedName('${m.name}')" class="p-3 border-b border-gray-100 active:bg-gray-100 cursor-pointer flex justify-between items-center">
+                        <span class="font-bold text-gray-800 text-sm">${m.name}</span>
+                        <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded">${m.corridor} - اتاق ${m.room}</span>
+                    </div>
+                `).join('');
+            } else {
+                suggBox.innerHTML = `
+                    <div onclick="addTypedName()" class="p-3 text-sm text-blue-600 bg-blue-50 active:bg-blue-100 cursor-pointer font-bold">
+                        <i class="fas fa-plus"></i> ثبت «${input}» (فرد ناشناس)
+                    </div>`;
+            }
+            suggBox.classList.remove('hidden');
+        }
+
+        function addSelectedName(name) {
+            if (!selectedForToday.includes(name)) { selectedForToday.push(name); renderSelectedChips(); }
+            document.getElementById('smart-input').value = '';
+            document.getElementById('suggestions-box').classList.add('hidden');
+            document.getElementById('smart-input').focus();
+        }
+
+        function addTypedName() {
+            const name = document.getElementById('smart-input').value.trim();
+            if (name && !selectedForToday.includes(name)) { selectedForToday.push(name); renderSelectedChips(); }
+            document.getElementById('smart-input').value = '';
+            document.getElementById('suggestions-box').classList.add('hidden');
+            document.getElementById('smart-input').focus();
+        }
+
+        function removeSelectedName(name) {
+            selectedForToday = selectedForToday.filter(n => n !== name);
+            renderSelectedChips();
+        }
+
+        function renderSelectedChips() {
+            const container = document.getElementById('selected-chips-container');
+            container.innerHTML = selectedForToday.map(name => `
+                <div class="chip"><span>${name}</span><button onclick="removeSelectedName('${name}')"><i class="fas fa-times-circle ml-1"></i></button></div>
+            `).join('');
+            document.getElementById('selected-count-label').innerText = `${selectedForToday.length} نفر`;
+        }
+
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if(!text) return;
+                const names = text.split('\n').map(n => n.trim()).filter(n => n.length > 2);
+                let addedCount = 0;
+                names.forEach(n => { if(!selectedForToday.includes(n)) { selectedForToday.push(n); addedCount++; } });
+                if(addedCount > 0) { renderSelectedChips(); alert(`${addedCount} نفر اضافه شدند.`); }
+            } catch (err) { alert('خطا! مطمئن شوید متن را کپی کرده‌اید.'); }
+        }
+
+        // ================= بخش توزیع =================
+        function startDistribution() {
+            if (selectedForToday.length === 0) { alert('لیست توزیع خالی است!'); return; }
+            if (db.length === 0) { alert('دیتابیس اتاق‌ها خالی است.'); return; }
+
+            currentMeal = document.querySelector('input[name="mealType"]:checked').value;
+            currentDist = {};
+            CORRIDORS.forEach(c => currentDist[c] = {});
+            const unknowns = [];
+
+            selectedForToday.forEach(inputName => {
+                const searchName = inputName.replace(/\s+/g, '');
+                const match = db.find(s => s.name.replace(/\s+/g, '') === searchName);
+
+                if (match) {
+                    if (!currentDist[match.corridor][match.room]) currentDist[match.corridor][match.room] = [];
+                    currentDist[match.corridor][match.room].push({ name: match.name, status: 'absent', receiver: '' });
+                } else {
+                    unknowns.push({ name: inputName, status: 'absent', receiver: '' });
+                }
+            });
+
+            if (unknowns.length > 0) currentDist['ناشناس‌ها'] = { 'نامشخص': unknowns };
+
+            distStats = { total: selectedForToday.length, deliveredNormal: 0, deliveredProxy: 0, remaining: selectedForToday.length };
+            
+            document.getElementById('dist-input-section').classList.add('hidden');
+            document.getElementById('dist-action-section').classList.remove('hidden');
+            document.getElementById('active-meal-name').innerText = currentMeal;
+            
+            updateDistStatsUI();
+            renderDistTabs();
+        }
+
+        function updateDistStatsUI() {
+            document.getElementById('stat-ok').innerText = distStats.deliveredNormal + distStats.deliveredProxy;
+            document.getElementById('stat-nok').innerText = distStats.remaining;
+        }
+
+        function renderDistTabs() {
+            const tabsContainer = document.getElementById('corridor-tabs');
+            tabsContainer.innerHTML = '';
+            
+            const activeCorridors = Object.keys(currentDist).filter(c => Object.keys(currentDist[c]).length > 0);
+
+            activeCorridors.forEach(corridor => {
+                const btn = document.createElement('button');
+                btn.className = `corridor-tab px-5 py-2 rounded-lg font-bold text-sm whitespace-nowrap ${corridor === 'ناشناس‌ها' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-white'}`;
+                btn.innerText = corridor;
+                btn.onclick = () => showDistCorridor(corridor);
+                btn.id = `dist-tab-${corridor}`;
+                tabsContainer.appendChild(btn);
+            });
+            if (activeCorridors.length > 0) showDistCorridor(activeCorridors[0]);
+        }
+
+        function showDistCorridor(corridorName) {
+            document.querySelectorAll('.corridor-tab').forEach(btn => btn.classList.remove('active', 'bg-blue-600', 'text-white'));
+            const activeTab = document.getElementById(`dist-tab-${corridorName}`);
+            if (activeTab) activeTab.classList.add('active', 'bg-blue-600', 'text-white');
+
+            const container = document.getElementById('rooms-container');
+            container.innerHTML = '';
+            
+            const rooms = currentDist[corridorName];
+            const sortedRooms = Object.keys(rooms).sort((a, b) => a === 'نامشخص' ? 1 : parseInt(a) - parseInt(b));
+
+            sortedRooms.forEach(roomNum => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden';
+                
+                // دکمه "تحویل یکجای اتاق" در هدر اضافه شد
+                let headerContent = corridorName === 'ناشناس‌ها' ? 'افراد ثبت نشده' : `اتاق ${roomNum}`;
+                let selectAllBtn = '';
+                
+                if (corridorName !== 'ناشناس‌ها') {
+                    selectAllBtn = `
+                        <button onclick="openProxyModal('${corridorName}', '${roomNum}', -1)" class="text-[11px] bg-yellow-200 text-yellow-800 px-2 py-1 rounded shadow-sm hover:bg-yellow-300 transition-colors">
+                            <i class="fas fa-users"></i> تحویل یکجا
+                        </button>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="px-3 py-2 text-sm font-bold border-b flex justify-between items-center ${corridorName === 'ناشناس‌ها' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-800'}">
+                        <span>${headerContent}</span>
+                        ${selectAllBtn}
+                    </div>
+                `;
+                
+                const list = document.createElement('div');
+                rooms[roomNum].forEach((student, index) => {
+                    const row = document.createElement('div');
+                    row.id = `row-${corridorName}-${roomNum}-${index}`;
+                    row.className = `student-box p-3 border-b flex justify-between items-center status-${student.status}`;
+                    
+                    const receiverHtml = student.status === 'proxy' ? `<span class="block text-[11px] text-yellow-600 mt-1">گیرنده: ${student.receiver}</span>` : '';
+
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="toggleStudentStatus('${corridorName}', '${roomNum}', ${index}, 'self')">
+                            <div class="check-icon w-6 h-6 rounded border border-gray-300 flex items-center justify-center transition-colors ${student.status === 'delivered' ? 'bg-green-500 border-green-500 text-white' : ''}">
+                                ${student.status === 'delivered' ? '<i class="fas fa-check text-xs"></i>' : ''}
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="student-name font-bold text-[15px]">${student.name}</span>
+                                ${receiverHtml}
+                            </div>
+                        </div>
+                        <button onclick="openProxyModal('${corridorName}', '${roomNum}', ${index})" class="proxy-btn ml-2 px-3 py-1.5 rounded text-xs font-bold transition-colors ${student.status === 'proxy' ? 'bg-yellow-400 text-yellow-900 shadow-inner' : 'bg-gray-100 text-gray-500 border border-gray-200'}">
+                            <i class="fas fa-user-friends"></i> تحویل به...
+                        </button>
+                    `;
+                    list.appendChild(row);
+                });
+                card.appendChild(list);
+                container.appendChild(card);
+            });
+        }
+
+        function toggleStudentStatus(corridor, room, index, mode) {
+            const student = currentDist[corridor][room][index];
+            const oldStatus = student.status;
+            let newStatus;
+            
+            if (oldStatus !== 'absent') {
+                if(confirm(`⚠️ آیا مطمئن هستید که می‌خواهید تیکِ غذای "${student.name}" را بردارید؟`)) {
+                    newStatus = 'absent';
+                    student.receiver = '';
+                } else { return; }
+            } else {
+                newStatus = 'delivered';
+                student.receiver = student.name;
+            }
+
+            updateStats(oldStatus, newStatus);
+            student.status = newStatus;
+            showDistCorridor(document.querySelector('.corridor-tab.active').innerText); 
+        }
+
+        // ================= مودال و منطق تحویل به دیگری (تکی و یکجا) =================
+        function openProxyModal(corridor, room, index) {
+            proxyTarget = { corridor, room, index };
+            
+            if (index === -1) {
+                // کلیک روی تحویل یکجای اتاق
+                document.getElementById('proxy-target-name').innerText = `باقیمانده‌های اتاق ${room}`;
+            } else {
+                // کلیک روی تحویل یک شخص خاص
+                const student = currentDist[corridor][room][index];
+                proxyTarget.name = student.name;
+                
+                if (student.status !== 'absent' && student.status !== 'proxy') {
+                    if(!confirm(`تغییر وضعیت "${student.name}" به «تحویل به شخص دیگر» انجام شود؟`)) return;
+                }
+                document.getElementById('proxy-target-name').innerText = student.name;
+            }
+
+            document.getElementById('proxy-custom-name').value = '';
+            
+            const roommatesBox = document.getElementById('proxy-roommates-list');
+            if (corridor === 'ناشناس‌ها') {
+                roommatesBox.innerHTML = '<span class="text-xs text-gray-400">برای افراد ناشناس، هم‌اتاقی یافت نشد.</span>';
+            } else {
+                // نمایش همه افراد ثبت شده در این اتاق به عنوان گیرنده احتمالی
+                const roommates = db.filter(s => s.corridor === corridor && s.room == room && s.name !== proxyTarget.name);
+                if (roommates.length > 0) {
+                    roommatesBox.innerHTML = roommates.map(rm => `
+                        <button onclick="setProxyReceiver('${rm.name}')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-sm font-bold border border-gray-200">
+                            ${rm.name}
+                        </button>
+                    `).join('');
+                } else {
+                    roommatesBox.innerHTML = '<span class="text-xs text-gray-400">فرد دیگری در این اتاق ثبت نشده است.</span>';
+                }
+            }
+
+            const modal = document.getElementById('proxy-modal');
+            const content = document.getElementById('proxy-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                if(window.innerWidth < 640) content.classList.remove('translate-y-full');
+                else content.classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeProxyModal() {
+            const modal = document.getElementById('proxy-modal');
+            const content = document.getElementById('proxy-modal-content');
+            if(window.innerWidth < 640) content.classList.add('translate-y-full');
+            else content.classList.add('scale-95');
+            modal.classList.add('opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function setCustomProxy() {
+            const name = document.getElementById('proxy-custom-name').value.trim();
+            if(!name) { alert('لطفاً نام را وارد کنید.'); return; }
+            setProxyReceiver(name);
+        }
+
+        function setProxyReceiver(receiverName) {
+            const { corridor, room, index } = proxyTarget;
+            
+            if (index === -1) {
+                // منطق تحویل یکجای کل اتاق (فقط برای کسانی که غایب هستند اعمال می‌شود)
+                let appliedCount = 0;
+                currentDist[corridor][room].forEach(student => {
+                    if (student.status === 'absent') {
+                        updateStats('absent', 'proxy');
+                        student.receiver = receiverName;
+                        student.status = 'proxy';
+                        appliedCount++;
+                    }
+                });
+                if(appliedCount === 0) {
+                    alert('غذای همه افراد این اتاق قبلاً تحویل داده شده است!');
+                }
+            } else {
+                // منطق تحویل به شخص (یک نفر)
+                const student = currentDist[corridor][room][index];
+                const oldStatus = student.status;
+                student.receiver = receiverName;
+                student.status = 'proxy';
+                updateStats(oldStatus, 'proxy');
+            }
+            
+            closeProxyModal();
+            showDistCorridor(document.querySelector('.corridor-tab.active').innerText);
+        }
+
+        function updateStats(oldStatus, newStatus) {
+            if(oldStatus === 'delivered') distStats.deliveredNormal--;
+            if(oldStatus === 'proxy') distStats.deliveredProxy--;
+            if(oldStatus === 'absent') distStats.remaining--;
+
+            if(newStatus === 'delivered') distStats.deliveredNormal++;
+            if(newStatus === 'proxy') distStats.deliveredProxy++;
+            if(newStatus === 'absent') distStats.remaining++;
+            
+            updateDistStatsUI();
+        }
+
+        function cancelDistribution() {
+            if (confirm('توزیع لغو شود؟')) {
+                document.getElementById('dist-input-section').classList.remove('hidden');
+                document.getElementById('dist-action-section').classList.add('hidden');
+            }
+        }
+
+        // ================= صدور گزارش جامع حقوقی =================
+        function finishDistribution() {
+            const dateStr = new Date().toLocaleDateString('fa-IR');
+            const timeStr = new Date().toLocaleTimeString('fa-IR', {hour: '2-digit', minute:'2-digit'});
+            
+            let reportText = `📊 گزارش توزیع ${currentMeal}\n📅 ${dateStr} - ساعت ${timeStr}\n`;
+            reportText += `━━━━━━━━━━━━━━━━━━\n`;
+            reportText += `📈 خلاصه آمار:\n`;
+            reportText += `▫️ کل لیست: ${distStats.total} پرس\n`;
+            reportText += `▫️ تحویل به شخص: ${distStats.deliveredNormal} پرس\n`;
+            reportText += `▫️ تحویل به دیگری: ${distStats.deliveredProxy} پرس\n`;
+            reportText += `▫️ غایبین (باقیمانده): ${distStats.remaining} پرس\n`;
+            reportText += `━━━━━━━━━━━━━━━━━━\n`;
+
+            let hasAbsents = false;
+            let proxyListText = '';
+            let unknownListText = '';
+
+            reportText += `❌ لیست غایبین (باقیمانده):\n`;
+            
+            for (const corridor in currentDist) {
+                if (corridor === 'ناشناس‌ها') {
+                    currentDist[corridor]['نامشخص'].forEach(s => {
+                        if (s.status === 'absent') unknownListText += ` - ${s.name} (غایب)\n`;
+                        else unknownListText += ` - ${s.name} (گیرنده: ${s.receiver})\n`;
+                    });
+                    continue;
+                }
+
+                let corridorAbsents = [];
+                for (const room in currentDist[corridor]) {
+                    currentDist[corridor][room].forEach(student => {
+                        if (student.status === 'absent') {
+                            corridorAbsents.push(` - ${student.name} (اتاق ${room})`);
+                            hasAbsents = true;
+                        }
+                        if (student.status === 'proxy') {
+                            proxyListText += ` - ${student.name} از اتاق ${room} 👈 تحویل به: [ ${student.receiver} ]\n`;
+                        }
+                    });
+                }
+                if (corridorAbsents.length > 0) reportText += `🏢 راهرو ${corridor}:\n` + corridorAbsents.join('\n') + `\n`;
+            }
+
+            if (!hasAbsents) reportText += `همه افراد خوابگاه غذای خود را دریافت کردند. ✅\n`;
+
+            if (proxyListText !== '') {
+                reportText += `\n🤝 لیست تحویلی به شخص دیگر:\n${proxyListText}`;
+            }
+
+            if (unknownListText !== '') {
+                reportText += `\n❓ افراد خارج از سیستم (ناشناس):\n${unknownListText}`;
+            }
+
+            const newRecord = {
+                id: Date.now(), date: dateStr, time: timeStr, meal: currentMeal,
+                report: reportText, total: distStats.total, 
+                delivered: distStats.deliveredNormal + distStats.deliveredProxy, 
+                remaining: distStats.remaining
+            };
+            history.unshift(newRecord);
+            saveHistory();
+
+            selectedForToday = [];
+            renderSelectedChips();
+            document.getElementById('dist-input-section').classList.remove('hidden');
+            document.getElementById('dist-action-section').classList.add('hidden');
+            
+            switchTab('history');
+            openReportModal(reportText);
+        }
+
+        function openReportModal(text) {
+            document.getElementById('report-modal-text').innerText = text;
+            const modal = document.getElementById('report-modal');
+            const content = document.getElementById('report-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+        }
+
+        function closeReportModal() {
+            const modal = document.getElementById('report-modal');
+            const content = document.getElementById('report-modal-content');
+            modal.classList.add('opacity-0'); content.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        }
+
+        function copyModalReport() {
+            const text = document.getElementById('report-modal-text').innerText;
+            const t = document.createElement('textarea');
+            t.value = text;
+            document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t);
+            alert('گزارش جامع کپی شد!');
+            closeReportModal();
+        }
+
+        // ================= بخش بایگانی =================
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+            if (history.length === 0) { list.innerHTML = '<p class="text-center text-sm text-gray-400 py-6">تاریخچه خالی است.</p>'; return; }
+
+            history.forEach(item => {
+                const colors = { 'صبحانه': 'yellow', 'ناهار': 'blue', 'شام': 'indigo', 'پک تشویقی': 'purple' };
+                const c = colors[item.meal] || 'gray';
+                const card = document.createElement('div');
+                card.className = 'bg-gray-50 border border-gray-200 p-3 rounded-lg';
+                card.innerHTML = `
+                    <div class="flex justify-between border-b border-gray-200 pb-2 mb-2">
+                        <span class="bg-${c}-100 text-${c}-700 text-xs font-bold px-2 py-1 rounded">${item.meal}</span>
+                        <span class="text-[11px] text-gray-500">${item.date} - ${item.time}</span>
+                    </div>
+                    <div class="flex justify-between text-xs font-bold mb-3">
+                        <span class="text-gray-600">کل: ${item.total}</span>
+                        <span class="text-green-600">تحویل: ${item.delivered}</span>
+                        <span class="text-red-500">غایب: ${item.remaining}</span>
+                    </div>
+                    <button onclick="openReportModal(\`${item.report.replace(/`/g, '\\`')}\`)" class="w-full bg-white border border-gray-300 text-blue-700 py-2 rounded-lg text-sm font-bold active:bg-blue-50 shadow-sm flex justify-center items-center gap-2">
+                        <i class="fas fa-eye"></i> مشاهده گزارش کامل
+                    </button>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        // ================= دیتابیس (مدیریت اتاق) =================
+        function setDbCorridor(corridor) {
+            activeDbCorridor = corridor;
+            document.querySelectorAll('.db-corridor-btn').forEach(btn => btn.className = 'db-corridor-btn flex-1 py-1.5 rounded text-sm font-bold text-gray-500 bg-transparent');
+            document.getElementById(`db-btn-${corridor}`).className = 'db-corridor-btn flex-1 py-1.5 rounded text-sm font-bold bg-white shadow-sm text-blue-600';
+            renderDbGrid();
+        }
+
+        function renderDbGrid() {
+            const grid = document.getElementById('db-grid');
+            grid.innerHTML = '';
+            document.getElementById('db-total-count').innerText = `${db.length} نفر کل`;
+            for (let i = 1; i <= ROOM_COUNT; i++) {
+                const count = db.filter(s => s.corridor === activeDbCorridor && s.room === i).length;
+                const btn = document.createElement('button');
+                btn.className = 'bg-white border border-gray-200 rounded-xl p-3 flex flex-col items-center justify-center gap-1 active:bg-gray-50 shadow-sm';
+                btn.onclick = () => openRoomModal(i);
+                btn.innerHTML = `
+                    <span class="font-bold text-gray-700 text-sm">اتاق ${i}</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full ${count > 0 ? 'bg-blue-100 text-blue-700 font-bold' : 'bg-gray-100 text-gray-400'}">${count > 0 ? count + ' نفر' : 'خالی'}</span>
+                `;
+                grid.appendChild(btn);
+            }
+        }
+
+        function openRoomModal(roomNumber) {
+            activeDbRoom = roomNumber;
+            document.getElementById('room-modal-title').innerText = `${activeDbCorridor} - اتاق ${roomNumber}`;
+            const modal = document.getElementById('room-modal');
+            const content = document.getElementById('room-modal-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); document.getElementById('add-student-input').focus(); }, 10);
+            renderRoomModalList();
+        }
+
+        function closeRoomModal() {
+            const modal = document.getElementById('room-modal');
+            const content = document.getElementById('room-modal-content');
+            modal.classList.add('opacity-0'); content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); renderDbGrid(); }, 200);
+        }
+
+        function renderRoomModalList() {
+            const list = document.getElementById('room-modal-students');
+            list.innerHTML = '';
+            const students = db.filter(s => s.corridor === activeDbCorridor && s.room === activeDbRoom);
+            if (students.length === 0) { list.innerHTML = '<p class="text-center text-xs text-gray-400 py-4">خالی</p>'; return; }
+            students.forEach(s => {
+                list.innerHTML += `
+                    <div class="flex justify-between items-center bg-white border border-gray-200 p-2.5 rounded-lg shadow-sm">
+                        <span class="text-sm font-bold text-gray-800">${s.name}</span>
+                        <button onclick="deleteStudent(${s.id})" class="text-red-400 bg-red-50 p-2 rounded hover:text-red-600"><i class="fas fa-trash-alt"></i></button>
+                    </div>`;
+            });
+        }
+
+        function addStudent() {
+            const input = document.getElementById('add-student-input');
+            const name = input.value.trim();
+            if (!name) return;
+            db.push({ id: Date.now(), name: name, corridor: activeDbCorridor, room: activeDbRoom });
+            saveDb();
+            input.value = ''; renderRoomModalList(); input.focus();
+        }
+
+        function deleteStudent(id) {
+            if (confirm('از اتاق حذف شود؟')) { db = db.filter(s => s.id !== id); saveDb(); renderRoomModalList(); }
+        }
+    </script>
+</body>
+</html>
