@@ -92,82 +92,88 @@
         </div>
     </div>
 
-    <!-- Firebase Scripts (Module) -->
+    <!-- Supabase Scripts (Module) -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/+esm";
 
-        // === کدهای ارتباط با سرور ابری (Cloud Database) ===
-        const firebaseConfig = {
-            apiKey: "AIzaSyCBebfPloDeb0HsmAII7vpQNs5vSnaaXxc",
-            authDomain: "hozoor-c3454.firebaseapp.com",
-            projectId: "hozoor-c3454",
-            storageBucket: "hozoor-c3454.firebasestorage.app",
-            messagingSenderId: "510639328212",
-            appId: "1:510639328212:web:7d2b5b01c8cd6260a32441"
-        };
+        // === کدهای ارتباط با سرور ابری (Supabase) ===
+        const supabaseUrl = 'https://cycprryalibwwimjqjcp.supabase.co';
+        const supabaseKey = 'sb_publishable_DGirk7FjKHnVIgX7jN1N8A_Z-mr05TO';
+        const supabase = createClient(supabaseUrl, supabaseKey);
 
-        const app = initializeApp(firebaseConfig);
-        const fsdb = getFirestore(app);
-
-        // داده‌های ابری برنامه (که در همه گوشی‌ها همگام می‌شود)
         window.cloudData = {
             supervisors: [],
-            borrowItems: ['جاروبرقی', 'اتو', 'سشوار', 'کلید زاپاس'], // پیش‌فرض
+            borrowItems: ['جاروبرقی', 'اتو', 'سشوار', 'کلید زاپاس'],
             students: {},
             attendance: [],
             borrows: []
         };
 
-        // گوش دادن به تغییرات تنظیمات (سرپرستان و لیست امانات)
-        onSnapshot(doc(fsdb, "appData", "settings"), (docSnap) => {
-            if(docSnap.exists()) {
-                window.cloudData.supervisors = docSnap.data().supervisors || [];
-                window.cloudData.borrowItems = docSnap.data().borrowItems || window.cloudData.borrowItems;
-            } else {
-                setDoc(doc(fsdb, "appData", "settings"), { supervisors: [], borrowItems: window.cloudData.borrowItems });
+        // توابع دریافت اطلاعات
+        async function fetchSettings() {
+            const { data } = await supabase.from('settings').select('*').eq('id', 'config');
+            if (data && data.length > 0) {
+                window.cloudData.supervisors = data[0].data.supervisors || [];
+                window.cloudData.borrowItems = data[0].data.borrowItems || window.cloudData.borrowItems;
             }
             window.updateShiftUI();
             window.renderTab();
-        });
+        }
 
-        // گوش دادن به تغییرات دانشجویان
-        onSnapshot(doc(fsdb, "appData", "students"), (docSnap) => {
-            if(docSnap.exists()) window.cloudData.students = docSnap.data().list || {};
-            else setDoc(doc(fsdb, "appData", "students"), { list: {} });
+        async function fetchStudents() {
+            const { data } = await supabase.from('students').select('*').eq('id', 'list');
+            if (data && data.length > 0) {
+                window.cloudData.students = data[0].data.list || {};
+            }
             window.renderTab();
-        });
+        }
 
-        // گوش دادن به تغییرات حضور غیاب
-        onSnapshot(collection(fsdb, "attendance"), (snapshot) => {
-            window.cloudData.attendance = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+        async function fetchAttendance() {
+            const { data } = await supabase.from('attendance').select('*');
+            if (data) window.cloudData.attendance = data.map(d => ({ id: d.id, ...d.data }));
             window.renderTab();
-        });
+        }
 
-        // گوش دادن به تغییرات امانات
-        onSnapshot(collection(fsdb, "borrows"), (snapshot) => {
-            window.cloudData.borrows = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+        async function fetchBorrows() {
+            const { data } = await supabase.from('borrows').select('*');
+            if (data) window.cloudData.borrows = data.map(d => ({ id: d.id, ...d.data }));
             window.renderTab();
-            
-            // مخفی کردن لودینگ پس از دریافت اطلاعات
-            document.getElementById('loader').style.display = 'none';
-        });
+        }
 
-        // توابع نوشتن در دیتابیس (در دسترس کردن برای HTML)
-        window.updateCloudSettings = () => {
-            setDoc(doc(fsdb, "appData", "settings"), { supervisors: window.cloudData.supervisors, borrowItems: window.cloudData.borrowItems }, { merge: true });
+        // دریافت اولیه تمام اطلاعات هنگام باز شدن برنامه
+        async function initData() {
+            await Promise.all([fetchSettings(), fetchStudents(), fetchAttendance(), fetchBorrows()]);
+            document.getElementById('loader').style.display = 'none'; // مخفی کردن لودینگ
+        }
+        initData();
+
+        // فعال‌سازی آپدیت زنده (Real-time) برای همه گوشی‌ها
+        supabase.channel('public-tables')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, fetchSettings)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, fetchStudents)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, fetchAttendance)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'borrows' }, fetchBorrows)
+            .subscribe();
+
+        // توابع ذخیره اطلاعات روی سرور (قابل دسترسی برای کلیک دکمه‌ها)
+        window.updateCloudSettings = async () => {
+            await supabase.from('settings').upsert({ id: 'config', data: { supervisors: window.cloudData.supervisors, borrowItems: window.cloudData.borrowItems } });
         };
-        window.updateCloudStudents = () => {
-            setDoc(doc(fsdb, "appData", "students"), { list: window.cloudData.students }, { merge: true });
+        window.updateCloudStudents = async () => {
+            await supabase.from('students').upsert({ id: 'list', data: { list: window.cloudData.students } });
         };
-        window.updateCloudAttendance = (uId, todayStr, data) => {
-            setDoc(doc(fsdb, "attendance", `${uId}_${todayStr}`), data);
+        window.updateCloudAttendance = async (uId, todayStr, data) => {
+            await supabase.from('attendance').upsert({ id: `${uId}_${todayStr}`, data: data });
         };
-        window.addCloudBorrow = (borrowObj) => {
-            setDoc(doc(fsdb, "borrows", borrowObj.id.toString()), borrowObj);
+        window.addCloudBorrow = async (borrowObj) => {
+            await supabase.from('borrows').upsert({ id: borrowObj.id.toString(), data: borrowObj });
         };
-        window.updateCloudBorrow = (id, updates) => {
-            setDoc(doc(fsdb, "borrows", id.toString()), updates, { merge: true });
+        window.updateCloudBorrow = async (id, updates) => {
+            const existing = window.cloudData.borrows.find(b => b.id.toString() === id.toString());
+            if (existing) {
+                const newData = { ...existing, ...updates };
+                await supabase.from('borrows').upsert({ id: id.toString(), data: newData });
+            }
         };
     </script>
 
@@ -192,7 +198,6 @@
         };
 
         window.updateShiftUI = () => {
-            // خواندن لیست سرپرستان از سرور ابری
             const supervisors = window.cloudData ? window.cloudData.supervisors : [];
             const select = document.getElementById('shift-select');
             const display = document.getElementById('shift-display');
@@ -232,7 +237,7 @@
         }
 
         window.renderTab = () => {
-            if(!window.cloudData) return; // صبر برای لود فایربیس
+            if(!window.cloudData) return; 
             const content = document.getElementById('app-content');
             if (state.tab === 'attendance') content.innerHTML = viewAttendance();
             else if (state.tab === 'borrow') content.innerHTML = viewBorrow();
@@ -321,7 +326,6 @@
             const uId = `${state.corridor}-${state.room}`;
             const today = getTodayStr();
             
-            // ارسال مستقیم به سرور
             window.updateCloudAttendance(uId, today, {
                 date: today, roomId: uId, roomNum: state.room,
                 corridorName: CORRIDORS.find(c=>c.id===state.corridor).name,
