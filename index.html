@@ -104,16 +104,17 @@
             students: {}, attendance: [], borrows: []
         };
 
-        // توابع خطایابی پیشرفته
+        // توابع خطایابی پیشرفته (نسخه دیباگ - خطای کامل رو نشون می‌ده)
         const checkError = (error, type) => {
             if(error) {
                 console.error("Supabase Error:", error);
-                alert(`خطا در ذخیره ${type}!\nاحتمالاً کدهای SQL در سایت سوپابیس به درستی اجرا نشده‌اند.`);
+                alert(`خطا در ذخیره ${type}!\n\nکد خطا: ${error.code || 'ندارد'}\nپیام: ${error.message || 'ندارد'}\nجزئیات: ${error.details || 'ندارد'}\nHint: ${error.hint || 'ندارد'}`);
             }
         };
 
         async function fetchSettings() {
             const { data, error } = await supabase.from('settings').select('*').eq('id', 'config');
+            if (error) { console.error('fetchSettings error:', error); alert(`خطا در خواندن تنظیمات:\n${error.message}`); }
             if (data && data.length > 0) {
                 window.cloudData.supervisors = data[0].data.supervisors || [];
                 window.cloudData.borrowItems = data[0].data.borrowItems || window.cloudData.borrowItems;
@@ -122,19 +123,22 @@
         }
 
         async function fetchStudents() {
-            const { data } = await supabase.from('students').select('*').eq('id', 'list');
+            const { data, error } = await supabase.from('students').select('*').eq('id', 'list');
+            if (error) { console.error('fetchStudents error:', error); alert(`خطا در خواندن دانشجویان:\n${error.message}`); }
             if (data && data.length > 0) window.cloudData.students = data[0].data.list || {};
             window.renderTab();
         }
 
         async function fetchAttendance() {
-            const { data } = await supabase.from('attendance').select('*');
+            const { data, error } = await supabase.from('attendance').select('*');
+            if (error) { console.error('fetchAttendance error:', error); alert(`خطا در خواندن حضور غیاب:\n${error.message}`); }
             if (data) window.cloudData.attendance = data.map(d => ({ id: d.id, ...d.data }));
             window.renderTab();
         }
 
         async function fetchBorrows() {
-            const { data } = await supabase.from('borrows').select('*');
+            const { data, error } = await supabase.from('borrows').select('*');
+            if (error) { console.error('fetchBorrows error:', error); alert(`خطا در خواندن امانات:\n${error.message}`); }
             if (data) window.cloudData.borrows = data.map(d => ({ id: d.id, ...d.data }));
             window.renderTab();
         }
@@ -422,5 +426,3 @@
     </script>
 </body>
 </html>
-
-`
